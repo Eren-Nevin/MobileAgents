@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
 
-    # CORS settings
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # CORS settings - allow all origins for mobile access
+    cors_origins: list[str] = ["*"]
 
     # Observer settings
     poll_interval: float = 1.0  # seconds between output polls

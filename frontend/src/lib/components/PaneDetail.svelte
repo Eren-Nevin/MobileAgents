@@ -21,6 +21,10 @@
 	let hiddenInput: HTMLInputElement;
 	let keyboardOpen = $state(false);
 
+	// Modifier key states (toggle buttons)
+	let ctrlActive = $state(false);
+	let altActive = $state(false);
+
 	// Special keys that tmux understands
 	const SPECIAL_KEYS: Record<string, string> = {
 		'Enter': 'Enter',
@@ -40,10 +44,35 @@
 
 	async function sendKey(key: string, isSpecial: boolean = false) {
 		try {
-			if (isSpecial) {
-				await sendSpecialKey(pane.pane_id, key as any);
+			// Build the key with modifiers if active
+			let finalKey = key;
+			let useLiteral = !isSpecial;
+
+			if (ctrlActive || altActive) {
+				// For modifier combinations, use tmux key notation
+				// Ctrl+key = C-key, Alt+key = M-key, Ctrl+Alt+key = C-M-key
+				let prefix = '';
+				if (ctrlActive) prefix += 'C-';
+				if (altActive) prefix += 'M-';
+
+				// For special keys, just prepend the modifier
+				// For regular keys, use lowercase
+				if (isSpecial) {
+					finalKey = prefix + key;
+				} else {
+					finalKey = prefix + key.toLowerCase();
+				}
+				useLiteral = false; // tmux needs to interpret the key notation
+
+				// Reset modifiers after use
+				ctrlActive = false;
+				altActive = false;
+			}
+
+			if (useLiteral) {
+				await sendKeys(pane.pane_id, finalKey, false);
 			} else {
-				await sendKeys(pane.pane_id, key, false);
+				await sendSpecialKey(pane.pane_id, finalKey);
 			}
 			setTimeout(() => loadPaneOutput(pane.pane_id, true), 50);
 		} catch (e) {
@@ -193,7 +222,7 @@
 				class="absolute opacity-0 w-0 h-0 pointer-events-none"
 			/>
 
-			<div class="flex gap-1.5 items-center justify-center">
+			<div class="flex gap-1.5 items-center justify-center flex-wrap">
 				<!-- Keyboard button (mobile) -->
 				<button
 					onclick={openKeyboard}
@@ -208,6 +237,26 @@
 						<line x1="18" y1="10" x2="18" y2="10" stroke-width="2" stroke-linecap="round"/>
 						<line x1="8" y1="14" x2="16" y2="14" stroke-width="2" stroke-linecap="round"/>
 					</svg>
+				</button>
+				<!-- Ctrl modifier (toggle) -->
+				<button
+					onclick={() => ctrlActive = !ctrlActive}
+					class="h-10 px-2 text-white text-xs font-medium rounded transition-colors
+						{ctrlActive ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-gray-700 hover:bg-gray-600'}"
+					aria-label="Ctrl modifier"
+					aria-pressed={ctrlActive}
+				>
+					Ctrl
+				</button>
+				<!-- Alt modifier (toggle) -->
+				<button
+					onclick={() => altActive = !altActive}
+					class="h-10 px-2 text-white text-xs font-medium rounded transition-colors
+						{altActive ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-gray-700 hover:bg-gray-600'}"
+					aria-label="Alt modifier"
+					aria-pressed={altActive}
+				>
+					Alt
 				</button>
 				<!-- Esc key -->
 				<button
@@ -227,6 +276,15 @@
 				</button>
 				<!-- Arrow keys -->
 				<button
+					onclick={() => sendKey('Left', true)}
+					class="h-10 w-10 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+					aria-label="Arrow Left"
+				>
+					<svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+					</svg>
+				</button>
+				<button
 					onclick={() => sendKey('Up', true)}
 					class="h-10 w-10 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
 					aria-label="Arrow Up"
@@ -242,6 +300,15 @@
 				>
 					<svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+				</button>
+				<button
+					onclick={() => sendKey('Right', true)}
+					class="h-10 w-10 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+					aria-label="Arrow Right"
+				>
+					<svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 					</svg>
 				</button>
 				<!-- Enter key -->

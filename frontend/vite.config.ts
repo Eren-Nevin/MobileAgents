@@ -12,6 +12,7 @@ export default defineConfig({
 		sveltekit()
 	],
 	server: {
+		host: '0.0.0.0', // Listen on all interfaces for mobile access
 		port: parseInt(process.env.VITE_PORT || '5678'),
 		strictPort: true,
 		proxy: {
