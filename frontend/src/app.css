@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/* Custom theme colors */
+@theme {
+	--color-primary: #3b82f6;
+	--color-primary-dark: #2563eb;
+	--color-success: #22c55e;
+	--color-warning: #eab308;
+	--color-danger: #ef4444;
+}
+
+/* Custom scrollbar for output logs */
+.scrollbar-thin {
+	scrollbar-width: thin;
+	scrollbar-color: #4b5563 #1f2937;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+	width: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+	background: #1f2937;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+	background-color: #4b5563;
+	border-radius: 4px;
+}
+
+/* Monospace output with Unicode and emoji support */
+.font-mono-output {
+	font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Cascadia Code', 'Consolas', 'Liberation Mono', monospace, 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+	font-size: 0.875rem;
+	line-height: 1.5;
+	font-variant-ligatures: none;
+}
+
+/* Ensure box drawing and special characters render correctly */
+pre, code, .font-mono-output {
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Terminal background - dark purple/blue (inspired by popular themes) */
+.bg-terminal {
+	background-color: #13111c;
+	background-image: linear-gradient(180deg, #13111c 0%, #1a1625 100%);
+}

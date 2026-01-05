@@ -1,0 +1,85 @@
+# Development Docker Compose with hot reloading
+#
+# NOTE: For tmux access, run backend on host instead of in Docker:
+#   1. Start only frontend: docker compose -f docker-compose.dev.yml up frontend
+#   2. Run backend on host: cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8765
+#
+# Or use the "dockerized" profile which runs tmux inside the container (no host tmux access)
+
+services:
+  # Backend in Docker - for testing without host tmux access
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${BACKEND_PORT:-8765}:8000"
+    environment:
+      - MOBILEAGENT_HOST=0.0.0.0
+      - MOBILEAGENT_PORT=8000
+      - MOBILEAGENT_DEBUG=true
+      - MOBILEAGENT_CORS_ORIGINS=["http://localhost:5678","http://localhost:3000","http://localhost:5173"]
+    volumes:
+      # Mount source code for hot reloading
+      - ./backend/app:/app/app
+      # Mount host tmux socket directory (requires host user's tmux to be running)
+      # Replace 1000 with your user ID (run: id -u)
+      - /tmp/tmux-${HOST_UID:-1000}:/tmp/tmux-0
+    restart: unless-stopped
+    profiles:
+      - dockerized
+
+  # Backend running on host network (can access host tmux)
+  backend-host:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    network_mode: host
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      - MOBILEAGENT_HOST=0.0.0.0
+      - MOBILEAGENT_PORT=8765
+      - MOBILEAGENT_DEBUG=true
+      - MOBILEAGENT_CORS_ORIGINS=["http://localhost:5678","http://localhost:3000","http://localhost:5173"]
+    volumes:
+      - ./backend/app:/app/app
+      - /tmp:/tmp
+    restart: unless-stopped
+    profiles:
+      - hostnet
+
+  # Frontend (default - uses port mapping, for use WITHOUT hostnet)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${FRONTEND_PORT:-5678}:5173"
+    environment:
+      - VITE_API_URL=http://host.docker.internal:8765
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/static:/app/static
+    restart: unless-stopped
+    profiles:
+      - default
+
+  # Frontend with host network (for hostnet profile)
+  frontend-host:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    network_mode: host
+    environment:
+      - VITE_API_URL=http://localhost:8765
+      - VITE_PORT=5678
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/static:/app/static
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/svelte.config.js:/app/svelte.config.js
+    restart: unless-stopped
+    profiles:
+      - hostnet
