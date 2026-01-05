@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PaneInfo } from '$lib/types';
 	import { getPaneOutput, getInputRequest, loadPaneOutput } from '$lib/stores/panes.svelte';
-	import { sendKeys } from '$lib/api';
+	import { sendKeys, sendSpecialKey } from '$lib/api';
 	import { onMount } from 'svelte';
 	import StatusBadge from './StatusBadge.svelte';
 	import PaneOutput from './PaneOutput.svelte';
@@ -17,32 +17,47 @@
 	const inputRequest = $derived(getInputRequest(pane.pane_id));
 	const hasInput = $derived(pane.status === 'waiting_input' && inputRequest);
 
-	let inputValue = $state('');
-	let isSending = $state(false);
 	let inputError = $state<string | null>(null);
 
-	async function handleSendKeys() {
-		if (!inputValue.trim() || isSending) return;
+	async function handleInput(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const char = input.value;
+		if (!char) return;
 
-		isSending = true;
-		inputError = null;
+		// Clear input immediately
+		input.value = '';
 
 		try {
-			await sendKeys(pane.pane_id, inputValue);
-			inputValue = '';
-			// Refresh output after sending
+			// Send character without Enter
+			await sendKeys(pane.pane_id, char, false);
+			setTimeout(() => loadPaneOutput(pane.pane_id, true), 50);
+		} catch (e) {
+			inputError = e instanceof Error ? e.message : 'Failed to send';
+		}
+	}
+
+	async function handleEnter() {
+		try {
+			await sendSpecialKey(pane.pane_id, 'Enter');
 			setTimeout(() => loadPaneOutput(pane.pane_id, true), 100);
 		} catch (e) {
 			inputError = e instanceof Error ? e.message : 'Failed to send';
-		} finally {
-			isSending = false;
 		}
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
+		if (e.key === 'Enter') {
 			e.preventDefault();
-			handleSendKeys();
+			handleEnter();
+		}
+	}
+
+	async function handleSpecialKey(key: 'Up' | 'Down' | 'Tab' | 'Escape') {
+		try {
+			await sendSpecialKey(pane.pane_id, key);
+			setTimeout(() => loadPaneOutput(pane.pane_id, true), 100);
+		} catch (e) {
+			console.error('Failed to send special key:', e);
 		}
 	}
 
@@ -122,21 +137,55 @@
 				</div>
 			{/if}
 
-			<div class="flex gap-2">
+			<div class="flex gap-2 items-center">
+				<!-- Esc and Tab keys -->
+				<button
+					onclick={() => handleSpecialKey('Escape')}
+					class="w-9 h-9 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
+					aria-label="Escape"
+				>
+					ESC
+				</button>
+				<button
+					onclick={() => handleSpecialKey('Tab')}
+					class="px-3 h-9 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
+					aria-label="Tab"
+				>
+					TAB
+				</button>
 				<input
 					type="text"
-					bind:value={inputValue}
+					oninput={handleInput}
 					onkeydown={handleKeyDown}
-					disabled={isSending}
-					placeholder="Send text to pane..."
-					class="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 font-mono text-sm"
+					placeholder="Type to send..."
+					class="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
 				/>
+				<!-- Arrow keys -->
+				<div class="flex flex-col gap-0.5">
+					<button
+						onclick={() => handleSpecialKey('Up')}
+						class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+						aria-label="Arrow Up"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+						</svg>
+					</button>
+					<button
+						onclick={() => handleSpecialKey('Down')}
+						class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+						aria-label="Arrow Down"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
+				</div>
 				<button
-					onclick={handleSendKeys}
-					disabled={isSending || !inputValue.trim()}
-					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors"
+					onclick={handleEnter}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors"
 				>
-					{isSending ? '...' : 'Send'}
+					Enter
 				</button>
 			</div>
 		</div>

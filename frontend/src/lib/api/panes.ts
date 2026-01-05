@@ -32,7 +32,15 @@ export async function sendInput(
 export async function sendKeys(
 	paneId: string,
 	keys: string,
-	enter: boolean = true
+	enter: boolean = true,
+	literal: boolean = true
 ): Promise<{ status: string; pane_id: string }> {
-	return post(`/panes/${encodeURIComponent(paneId)}/keys`, { keys, enter });
+	return post(`/panes/${encodeURIComponent(paneId)}/keys`, { keys, enter, literal });
+}
+
+export async function sendSpecialKey(
+	paneId: string,
+	key: 'Up' | 'Down' | 'Left' | 'Right' | 'Enter' | 'Escape' | 'Tab'
+): Promise<{ status: string; pane_id: string }> {
+	return post(`/panes/${encodeURIComponent(paneId)}/keys`, { keys: key, enter: false, literal: false });
 }

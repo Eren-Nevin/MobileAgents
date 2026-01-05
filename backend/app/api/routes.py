@@ -162,8 +162,9 @@ async def send_keys(
 
     keys = body.get("keys", "")
     send_enter = body.get("enter", True)
+    literal = body.get("literal", True)
 
-    success = await tmux.send_keys(pane_id, keys, enter=send_enter)
+    success = await tmux.send_keys(pane_id, keys, enter=send_enter, literal=literal)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

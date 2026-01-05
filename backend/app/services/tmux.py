@@ -228,6 +228,7 @@ class TmuxService:
         pane_id: str,
         text: str,
         enter: bool = True,
+        literal: bool = True,
     ) -> bool:
         """
         Send keys to a pane.
@@ -236,17 +237,21 @@ class TmuxService:
             pane_id: Pane identifier
             text: Text to send
             enter: Whether to send Enter key after text
+            literal: If True, send as literal text; if False, interpret special keys
 
         Returns:
             True if successful
         """
         try:
-            # Escape special characters for tmux
-            # Use literal-keys mode with -l to avoid interpretation
-            args = ["send-keys", "-t", pane_id, "-l", text]
+            if literal:
+                # Use literal-keys mode with -l to avoid interpretation
+                args = ["send-keys", "-t", pane_id, "-l", text]
+            else:
+                # Send as tmux key names (e.g., Up, Down, Left, Right, Enter)
+                args = ["send-keys", "-t", pane_id, text]
             await self._run_command(*args)
 
-            if enter:
+            if enter and literal:
                 await self._run_command("send-keys", "-t", pane_id, "Enter")
 
             logger.info(f"Sent keys to pane {pane_id}: {text[:50]}{'...' if len(text) > 50 else ''}")
