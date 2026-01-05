@@ -40,7 +40,7 @@ export async function sendKeys(
 
 export async function sendSpecialKey(
 	paneId: string,
-	key: 'Up' | 'Down' | 'Left' | 'Right' | 'Enter' | 'Escape' | 'Tab'
+	key: string // tmux key names: Up, Down, Left, Right, Enter, Escape, Tab, BSpace, DC, Home, End, PPage, NPage
 ): Promise<{ status: string; pane_id: string }> {
 	return post(`/panes/${encodeURIComponent(paneId)}/keys`, { keys: key, enter: false, literal: false });
 }

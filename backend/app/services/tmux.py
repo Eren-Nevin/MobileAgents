@@ -205,7 +205,8 @@ class TmuxService:
         Returns:
             List of output lines
         """
-        args = ["capture-pane", "-p", "-t", pane_id]
+        # -e flag includes escape sequences (ANSI colors)
+        args = ["capture-pane", "-p", "-e", "-t", pane_id]
 
         if start_line is not None:
             args.extend(["-S", str(start_line)])

@@ -2,7 +2,8 @@
 	import type { PaneInfo } from '$lib/types';
 	import { getPaneOutput, getInputRequest, loadPaneOutput } from '$lib/stores/panes.svelte';
 	import { sendKeys, sendSpecialKey } from '$lib/api';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import StatusBadge from './StatusBadge.svelte';
 	import PaneOutput from './PaneOutput.svelte';
 	import InputArea from './InputArea.svelte';
@@ -17,53 +18,100 @@
 	const inputRequest = $derived(getInputRequest(pane.pane_id));
 	const hasInput = $derived(pane.status === 'waiting_input' && inputRequest);
 
-	let inputError = $state<string | null>(null);
+	let hiddenInput: HTMLInputElement;
+	let keyboardOpen = $state(false);
 
-	async function handleInput(e: Event) {
-		const input = e.target as HTMLInputElement;
-		const char = input.value;
-		if (!char) return;
+	// Special keys that tmux understands
+	const SPECIAL_KEYS: Record<string, string> = {
+		'Enter': 'Enter',
+		'Backspace': 'BSpace',
+		'Tab': 'Tab',
+		'Escape': 'Escape',
+		'ArrowUp': 'Up',
+		'ArrowDown': 'Down',
+		'ArrowLeft': 'Left',
+		'ArrowRight': 'Right',
+		'Delete': 'DC',
+		'Home': 'Home',
+		'End': 'End',
+		'PageUp': 'PPage',
+		'PageDown': 'NPage',
+	};
 
-		// Clear input immediately
-		input.value = '';
-
+	async function sendKey(key: string, isSpecial: boolean = false) {
 		try {
-			// Send character without Enter
-			await sendKeys(pane.pane_id, char, false);
+			if (isSpecial) {
+				await sendSpecialKey(pane.pane_id, key as any);
+			} else {
+				await sendKeys(pane.pane_id, key, false);
+			}
 			setTimeout(() => loadPaneOutput(pane.pane_id, true), 50);
 		} catch (e) {
-			inputError = e instanceof Error ? e.message : 'Failed to send';
-		}
-	}
-
-	async function handleEnter() {
-		try {
-			await sendSpecialKey(pane.pane_id, 'Enter');
-			setTimeout(() => loadPaneOutput(pane.pane_id, true), 100);
-		} catch (e) {
-			inputError = e instanceof Error ? e.message : 'Failed to send';
+			console.error('Failed to send key:', e);
 		}
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Enter') {
+		// Ignore if typing in another input (like the detected prompt inputs)
+		if (e.target !== hiddenInput && e.target !== document.body) return;
+
+		// Check for special keys
+		if (SPECIAL_KEYS[e.key]) {
 			e.preventDefault();
-			handleEnter();
+			sendKey(SPECIAL_KEYS[e.key], true);
+			return;
+		}
+
+		// Ignore modifier-only keys
+		if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
+
+		// Ignore if modifier is held (except shift for capitals)
+		if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+		// Send printable character
+		if (e.key.length === 1) {
+			e.preventDefault();
+			sendKey(e.key, false);
 		}
 	}
 
-	async function handleSpecialKey(key: 'Up' | 'Down' | 'Tab' | 'Escape') {
-		try {
-			await sendSpecialKey(pane.pane_id, key);
-			setTimeout(() => loadPaneOutput(pane.pane_id, true), 100);
-		} catch (e) {
-			console.error('Failed to send special key:', e);
+	// Handle mobile keyboard input
+	function handleMobileInput(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const char = input.value;
+		if (char) {
+			sendKey(char, false);
 		}
+		// Clear immediately
+		input.value = '';
+	}
+
+	function openKeyboard() {
+		hiddenInput?.focus();
+		keyboardOpen = true;
+	}
+
+	function handleFocus() {
+		keyboardOpen = true;
+	}
+
+	function handleBlur() {
+		keyboardOpen = false;
 	}
 
 	onMount(() => {
-		// Load initial output
 		loadPaneOutput(pane.pane_id, true);
+
+		if (browser) {
+			// Add global keydown listener for desktop
+			document.addEventListener('keydown', handleKeyDown);
+		}
+	});
+
+	onDestroy(() => {
+		if (browser) {
+			document.removeEventListener('keydown', handleKeyDown);
+		}
 	});
 </script>
 
@@ -129,61 +177,78 @@
 			</div>
 		{/if}
 
-		<!-- Always-visible input -->
-		<div class="p-3">
-			{#if inputError}
-				<div class="mb-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-sm text-red-400">
-					{inputError}
-				</div>
-			{/if}
+		<!-- Keyboard input bar -->
+		<div class="p-2">
+			<!-- Hidden input for mobile keyboard -->
+			<input
+				bind:this={hiddenInput}
+				type="text"
+				oninput={handleMobileInput}
+				onfocus={handleFocus}
+				onblur={handleBlur}
+				autocomplete="off"
+				autocorrect="off"
+				autocapitalize="off"
+				spellcheck="false"
+				class="absolute opacity-0 w-0 h-0 pointer-events-none"
+			/>
 
-			<div class="flex gap-2 items-center">
-				<!-- Esc and Tab keys -->
+			<div class="flex gap-1.5 items-center justify-center">
+				<!-- Keyboard button (mobile) -->
 				<button
-					onclick={() => handleSpecialKey('Escape')}
-					class="w-9 h-9 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
+					onclick={openKeyboard}
+					class="h-10 px-3 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors {keyboardOpen ? 'ring-2 ring-blue-500' : ''}"
+					aria-label="Open keyboard"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<rect x="2" y="6" width="20" height="12" rx="2" stroke-width="2"/>
+						<line x1="6" y1="10" x2="6" y2="10" stroke-width="2" stroke-linecap="round"/>
+						<line x1="10" y1="10" x2="10" y2="10" stroke-width="2" stroke-linecap="round"/>
+						<line x1="14" y1="10" x2="14" y2="10" stroke-width="2" stroke-linecap="round"/>
+						<line x1="18" y1="10" x2="18" y2="10" stroke-width="2" stroke-linecap="round"/>
+						<line x1="8" y1="14" x2="16" y2="14" stroke-width="2" stroke-linecap="round"/>
+					</svg>
+				</button>
+				<!-- Esc key -->
+				<button
+					onclick={() => sendKey('Escape', true)}
+					class="h-10 w-10 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
 					aria-label="Escape"
 				>
 					ESC
 				</button>
+				<!-- Tab key -->
 				<button
-					onclick={() => handleSpecialKey('Tab')}
-					class="px-3 h-9 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
+					onclick={() => sendKey('Tab', true)}
+					class="h-10 px-3 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
 					aria-label="Tab"
 				>
 					TAB
 				</button>
-				<input
-					type="text"
-					oninput={handleInput}
-					onkeydown={handleKeyDown}
-					placeholder="Type to send..."
-					class="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
-				/>
 				<!-- Arrow keys -->
-				<div class="flex flex-col gap-0.5">
-					<button
-						onclick={() => handleSpecialKey('Up')}
-						class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-						aria-label="Arrow Up"
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-						</svg>
-					</button>
-					<button
-						onclick={() => handleSpecialKey('Down')}
-						class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-						aria-label="Arrow Down"
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-						</svg>
-					</button>
-				</div>
 				<button
-					onclick={handleEnter}
-					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors"
+					onclick={() => sendKey('Up', true)}
+					class="h-10 w-10 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+					aria-label="Arrow Up"
+				>
+					<svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+					</svg>
+				</button>
+				<button
+					onclick={() => sendKey('Down', true)}
+					class="h-10 w-10 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+					aria-label="Arrow Down"
+				>
+					<svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+				</button>
+				<!-- Enter key -->
+				<button
+					onclick={() => sendKey('Enter', true)}
+					class="h-10 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition-colors"
+					aria-label="Enter"
 				>
 					Enter
 				</button>
