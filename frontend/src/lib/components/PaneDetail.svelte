@@ -52,9 +52,9 @@
 	});
 </script>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-[100dvh]">
 	<!-- Header (sticky) -->
-	<div class="sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+	<div class="shrink-0 sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
 		<div class="flex items-center gap-3">
 			<a
 				href="/"
@@ -101,39 +101,44 @@
 	</div>
 
 	<!-- Output area -->
-	<div class="flex-1 relative overflow-hidden">
+	<div class="flex-1 min-h-0 overflow-hidden">
 		<PaneOutput lines={output} />
 	</div>
 
-	<!-- Special input area for detected prompts -->
-	{#if hasInput && inputRequest}
-		<InputArea paneId={pane.pane_id} {inputRequest} />
-	{/if}
-
-	<!-- Always-visible input -->
-	<div class="p-3 bg-gray-800 border-t border-gray-700">
-		{#if inputError}
-			<div class="mb-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-sm text-red-400">
-				{inputError}
+	<!-- Bottom input area (sticky) -->
+	<div class="shrink-0 sticky bottom-0 z-10 bg-gray-800 border-t border-gray-700">
+		<!-- Special input area for detected prompts -->
+		{#if hasInput && inputRequest}
+			<div class="border-b border-gray-700">
+				<InputArea paneId={pane.pane_id} {inputRequest} />
 			</div>
 		{/if}
 
-		<div class="flex gap-2">
-			<input
-				type="text"
-				bind:value={inputValue}
-				onkeydown={handleKeyDown}
-				disabled={isSending}
-				placeholder="Send text to pane..."
-				class="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 font-mono text-sm"
-			/>
-			<button
-				onclick={handleSendKeys}
-				disabled={isSending || !inputValue.trim()}
-				class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors"
-			>
-				{isSending ? '...' : 'Send'}
-			</button>
+		<!-- Always-visible input -->
+		<div class="p-3">
+			{#if inputError}
+				<div class="mb-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-sm text-red-400">
+					{inputError}
+				</div>
+			{/if}
+
+			<div class="flex gap-2">
+				<input
+					type="text"
+					bind:value={inputValue}
+					onkeydown={handleKeyDown}
+					disabled={isSending}
+					placeholder="Send text to pane..."
+					class="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 font-mono text-sm"
+				/>
+				<button
+					onclick={handleSendKeys}
+					disabled={isSending || !inputValue.trim()}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors"
+				>
+					{isSending ? '...' : 'Send'}
+				</button>
+			</div>
 		</div>
 	</div>
 </div>
