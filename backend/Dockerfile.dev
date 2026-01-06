@@ -21,4 +21,4 @@ EXPOSE ${PORT:-8000}
 
 # Run with --reload for hot reloading
 # Port is configurable via environment variable
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${MOBILEAGENT_PORT:-8000} --reload
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${MATE_PORT:-8000} --reload

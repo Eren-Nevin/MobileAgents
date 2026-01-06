@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     tmux_socket: str | None = None  # optional tmux socket path
 
     model_config = {
-        "env_prefix": "MOBILEAGENT_",
+        "env_prefix": "MATE_",
         "env_file": ".env",
         "env_file_encoding": "utf-8",
     }

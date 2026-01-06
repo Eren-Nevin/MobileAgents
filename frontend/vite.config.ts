@@ -17,8 +17,8 @@ export default defineConfig({
 				enabled: true
 			},
 			manifest: {
-				name: 'MobileAgent',
-				short_name: 'MobileAgent',
+				name: 'Mate',
+				short_name: 'Mate',
 				description: 'Monitor and control AI agents running in tmux sessions',
 				theme_color: '#1f2937',
 				background_color: '#111827',

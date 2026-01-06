@@ -74,7 +74,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="MobileAgent",
+        title="Mate",
         description="tmux Agent Web Observer & Control App",
         version="0.1.0",
         lifespan=lifespan,

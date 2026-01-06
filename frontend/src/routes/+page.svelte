@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>MobileAgent - Panes</title>
+	<title>Mate - Panes</title>
 </svelte:head>
 
 <PaneList />

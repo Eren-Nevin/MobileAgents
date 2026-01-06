@@ -19,9 +19,9 @@ COPY app/ ./app/
 # Make app directory readable by all (for running as non-root user)
 RUN chmod -R a+rX /app
 
-# Default port (can be overridden by MOBILEAGENT_PORT env var)
-ENV MOBILEAGENT_PORT=8765
+# Default port (can be overridden by MATE_PORT env var)
+ENV MATE_PORT=8765
 EXPOSE 8765
 
 # Run the application using the configured port
-CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${MOBILEAGENT_PORT}"
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${MATE_PORT}"

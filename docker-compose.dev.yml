@@ -15,10 +15,10 @@ services:
     ports:
       - "${BACKEND_PORT:-8765}:8000"
     environment:
-      - MOBILEAGENT_HOST=0.0.0.0
-      - MOBILEAGENT_PORT=8000
-      - MOBILEAGENT_DEBUG=true
-      - MOBILEAGENT_CORS_ORIGINS=["http://localhost:5678","http://localhost:3000","http://localhost:5173"]
+      - MATE_HOST=0.0.0.0
+      - MATE_PORT=8000
+      - MATE_DEBUG=true
+      - MATE_CORS_ORIGINS=["http://localhost:5678","http://localhost:3000","http://localhost:5173"]
     volumes:
       # Mount source code for hot reloading
       - ./backend/app:/app/app
@@ -37,10 +37,10 @@ services:
     network_mode: host
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:
-      - MOBILEAGENT_HOST=0.0.0.0
-      - MOBILEAGENT_PORT=8765
-      - MOBILEAGENT_DEBUG=true
-      - MOBILEAGENT_CORS_ORIGINS=["*"]
+      - MATE_HOST=0.0.0.0
+      - MATE_PORT=8765
+      - MATE_DEBUG=true
+      - MATE_CORS_ORIGINS=["*"]
     volumes:
       - ./backend/app:/app/app
       - /tmp:/tmp

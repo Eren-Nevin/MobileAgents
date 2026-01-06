@@ -1,4 +1,4 @@
-# MobileAgent
+# Mate
 
 A mobile-friendly web application for observing and controlling AI agents running in tmux sessions.
 
@@ -113,7 +113,7 @@ MESSAGE: Deploy to production?
 
 ## Configuration
 
-Environment variables (prefix with `MOBILEAGENT_`):
+Environment variables (prefix with `MATE_`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -126,7 +126,7 @@ Environment variables (prefix with `MOBILEAGENT_`):
 ## Project Structure
 
 ```
-MobileAgent/
+Mate/
 ├── backend/
 │   ├── app/
 │   │   ├── api/           # REST and WebSocket endpoints

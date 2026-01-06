@@ -7,11 +7,11 @@ services:
     network_mode: host
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:
-      - MOBILEAGENT_HOST=0.0.0.0
-      - MOBILEAGENT_PORT=8765
-      - MOBILEAGENT_CORS_ORIGINS=["*"]
-      - MOBILEAGENT_POLL_INTERVAL=0.1
-      - MOBILEAGENT_DISCOVERY_INTERVAL=5.0
+      - MATE_HOST=0.0.0.0
+      - MATE_PORT=8765
+      - MATE_CORS_ORIGINS=["*"]
+      - MATE_POLL_INTERVAL=0.1
+      - MATE_DISCOVERY_INTERVAL=5.0
     volumes:
       # Mount host /tmp for tmux socket access
       - /tmp:/tmp

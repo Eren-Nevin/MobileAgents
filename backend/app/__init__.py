@@ -1,1 +1,1 @@
-"""MobileAgent - tmux Agent Web Observer & Control App"""
+"""Mate - tmux Agent Web Observer & Control App"""

@@ -1,1 +1,1 @@
-"""Test suite for MobileAgent backend"""
+"""Test suite for Mate backend"""

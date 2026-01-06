@@ -23,7 +23,7 @@
 </script>
 
 <svelte:head>
-	<title>{pane?.title || pane?.pane_id || 'Pane'} - MobileAgent</title>
+	<title>{pane?.title || pane?.pane_id || 'Pane'} - Mate</title>
 </svelte:head>
 
 {#if pane}
