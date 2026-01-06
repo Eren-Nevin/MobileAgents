@@ -1,6 +1,6 @@
 """Tests for REST API endpoints"""
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from app.models.input import InputRequest, InputType
 from app.models.pane import PaneState, PaneStatus
@@ -164,3 +164,161 @@ class TestPanesAPI:
 
         assert response.status_code == 200
         assert response.json() == {"status": "healthy"}
+
+
+class TestKeysAPI:
+    """Tests for /api/panes/{id}/keys endpoint"""
+
+    async def test_send_keys_success(
+        self,
+        async_client,
+        registry: PaneRegistry,
+        mock_tmux_service: MagicMock,
+    ):
+        """Test sending raw keys to a pane"""
+        pane = PaneState(
+            pane_id="%0",
+            session_name="test",
+            window_name="main",
+            status=PaneStatus.RUNNING,  # Can send keys even when not waiting
+        )
+        await registry.update("%0", pane)
+
+        response = await async_client.post(
+            "/api/panes/%0/keys",
+            json={"keys": "hello", "enter": True},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        mock_tmux_service.send_keys.assert_called_once_with(
+            "%0", "hello", enter=True, literal=True
+        )
+
+    async def test_send_keys_no_enter(
+        self,
+        async_client,
+        registry: PaneRegistry,
+        mock_tmux_service: MagicMock,
+    ):
+        """Test sending keys without Enter"""
+        pane = PaneState(
+            pane_id="%0",
+            session_name="test",
+            window_name="main",
+        )
+        await registry.update("%0", pane)
+
+        response = await async_client.post(
+            "/api/panes/%0/keys",
+            json={"keys": "a", "enter": False},
+        )
+
+        assert response.status_code == 200
+        mock_tmux_service.send_keys.assert_called_once_with(
+            "%0", "a", enter=False, literal=True
+        )
+
+    async def test_send_keys_special_key(
+        self,
+        async_client,
+        registry: PaneRegistry,
+        mock_tmux_service: MagicMock,
+    ):
+        """Test sending special keys (non-literal)"""
+        pane = PaneState(
+            pane_id="%0",
+            session_name="test",
+            window_name="main",
+        )
+        await registry.update("%0", pane)
+
+        response = await async_client.post(
+            "/api/panes/%0/keys",
+            json={"keys": "Up", "enter": False, "literal": False},
+        )
+
+        assert response.status_code == 200
+        mock_tmux_service.send_keys.assert_called_once_with(
+            "%0", "Up", enter=False, literal=False
+        )
+
+    async def test_send_keys_pane_not_found(self, async_client):
+        """Test sending keys to nonexistent pane"""
+        response = await async_client.post(
+            "/api/panes/%999/keys",
+            json={"keys": "hello", "enter": True},
+        )
+
+        assert response.status_code == 404
+
+    async def test_send_keys_failure(
+        self,
+        async_client,
+        registry: PaneRegistry,
+        mock_tmux_service: MagicMock,
+    ):
+        """Test handling of tmux send_keys failure"""
+        pane = PaneState(
+            pane_id="%0",
+            session_name="test",
+            window_name="main",
+        )
+        await registry.update("%0", pane)
+
+        mock_tmux_service.send_keys = AsyncMock(return_value=False)
+
+        response = await async_client.post(
+            "/api/panes/%0/keys",
+            json={"keys": "hello", "enter": True},
+        )
+
+        assert response.status_code == 500
+
+    async def test_get_pane_output_with_refresh(
+        self,
+        async_client,
+        registry: PaneRegistry,
+        mock_tmux_service: MagicMock,
+    ):
+        """Test getting pane output with refresh flag"""
+        pane = PaneState(
+            pane_id="%0",
+            session_name="test",
+            window_name="main",
+            last_lines=["old line"],
+        )
+        await registry.update("%0", pane)
+
+        mock_tmux_service.capture_pane = AsyncMock(
+            return_value=["fresh line 1", "fresh line 2"]
+        )
+
+        response = await async_client.get("/api/panes/%0/output?refresh=true")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["lines"] == ["fresh line 1", "fresh line 2"]
+        mock_tmux_service.capture_pane.assert_called_once()
+
+    async def test_get_pane_output_custom_lines(
+        self,
+        async_client,
+        registry: PaneRegistry,
+    ):
+        """Test getting pane output with custom line count"""
+        pane = PaneState(
+            pane_id="%0",
+            session_name="test",
+            window_name="main",
+            last_lines=["line1", "line2", "line3", "line4", "line5"],
+        )
+        await registry.update("%0", pane)
+
+        response = await async_client.get("/api/panes/%0/output?lines=3")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["lines"]) == 3
+        # Should return last 3 lines
+        assert data["lines"] == ["line3", "line4", "line5"]

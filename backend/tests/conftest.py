@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
@@ -80,7 +81,7 @@ def test_client(mock_tmux_service: MagicMock, registry: PaneRegistry, observer: 
     return TestClient(app)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def async_client(
     mock_tmux_service: MagicMock,
     registry: PaneRegistry,
