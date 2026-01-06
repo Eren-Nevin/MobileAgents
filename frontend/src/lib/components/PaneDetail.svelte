@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PaneInfo } from '$lib/types';
-	import { getPaneOutput, getInputRequest, loadPaneOutput } from '$lib/stores/panes.svelte';
+	import { getPaneOutput, getPaneLineOffset, getInputRequest, loadPaneOutput } from '$lib/stores/panes.svelte';
 	import { sendKeys, sendSpecialKey } from '$lib/api';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
@@ -14,7 +14,9 @@
 
 	let { pane }: Props = $props();
 
+	// Use getter functions that track dataVersion for reactivity
 	const output = $derived(getPaneOutput(pane.pane_id));
+	const lineOffset = $derived(getPaneLineOffset(pane.pane_id));
 	const inputRequest = $derived(getInputRequest(pane.pane_id));
 	const hasInput = $derived(pane.status === 'waiting_input' && inputRequest);
 
@@ -74,7 +76,7 @@
 			} else {
 				await sendSpecialKey(pane.pane_id, finalKey);
 			}
-			setTimeout(() => loadPaneOutput(pane.pane_id, true), 50);
+			// WebSocket provides real-time updates, no need to poll
 		} catch (e) {
 			console.error('Failed to send key:', e);
 		}
@@ -194,7 +196,7 @@
 
 	<!-- Output area -->
 	<div class="flex-1 min-h-0 overflow-hidden relative">
-		<PaneOutput lines={output} />
+		<PaneOutput lines={output} {lineOffset} />
 	</div>
 
 	<!-- Bottom input area (sticky) -->

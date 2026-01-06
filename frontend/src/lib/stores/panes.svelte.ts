@@ -2,41 +2,80 @@ import { browser } from '$app/environment';
 import { fetchPanes, fetchPaneOutput, wsManager } from '$lib/api';
 import type { InputRequest, PaneInfo, PaneOutput, PaneStatus, WebSocketEvent } from '$lib/types';
 
+// Per-pane store interface
+interface PaneStore {
+	info: PaneInfo;
+	lines: string[];
+	lineOffset: number; // For stable line keys
+	inputRequest: InputRequest | undefined;
+}
+
 // Reactive state using Svelte 5 runes
-let panes = $state<Map<string, PaneInfo>>(new Map());
-let outputs = $state<Map<string, string[]>>(new Map());
-let inputRequests = $state<Map<string, InputRequest | undefined>>(new Map());
+let paneStores = $state<Map<string, PaneStore>>(new Map());
 let selectedPaneId = $state<string | null>(null);
 let isConnected = $state(false);
 let isLoading = $state(false);
 let error = $state<string | null>(null);
 
-// Derived state
+// Version counter to signal when paneStores Map itself changes (add/remove)
+let storeVersion = $state(0);
+// Version counter for data updates (triggers re-render of watching components)
+let dataVersion = $state(0);
+
+// ============================================================================
+// Getters - Direct access to state
+// ============================================================================
+
+export function getPaneStore(paneId: string): PaneStore | undefined {
+	// Only track storeVersion (add/remove), not dataVersion
+	// Fine-grained reactivity on store properties handles data updates
+	void storeVersion;
+	return paneStores.get(paneId);
+}
+
+export function getPaneIds(): string[] {
+	void storeVersion;
+	return Array.from(paneStores.keys());
+}
+
 export function getPanes(): PaneInfo[] {
-	return Array.from(panes.values());
+	void storeVersion;
+	return Array.from(paneStores.values()).map((s) => s.info);
 }
 
 export function getPanesBySession(): Map<string, PaneInfo[]> {
+	void storeVersion;
 	const grouped = new Map<string, PaneInfo[]>();
-	for (const pane of panes.values()) {
-		const key = pane.session_name;
+	for (const store of paneStores.values()) {
+		const key = store.info.session_name;
 		const list = grouped.get(key) || [];
-		list.push(pane);
+		list.push(store.info);
 		grouped.set(key, list);
 	}
 	return grouped;
 }
 
 export function getPane(paneId: string): PaneInfo | undefined {
-	return panes.get(paneId);
+	void storeVersion; // Track Map changes for reactivity
+	return paneStores.get(paneId)?.info;
 }
 
 export function getPaneOutput(paneId: string): string[] {
-	return outputs.get(paneId) || [];
+	void storeVersion; // Track Map changes for reactivity
+	void dataVersion; // Track data updates for reactivity
+	return paneStores.get(paneId)?.lines ?? [];
+}
+
+export function getPaneLineOffset(paneId: string): number {
+	void storeVersion; // Track Map changes for reactivity
+	void dataVersion; // Track data updates for reactivity
+	return paneStores.get(paneId)?.lineOffset ?? 0;
 }
 
 export function getInputRequest(paneId: string): InputRequest | undefined {
-	return inputRequests.get(paneId);
+	void storeVersion; // Track Map changes for reactivity
+	void dataVersion; // Track data updates for reactivity
+	return paneStores.get(paneId)?.inputRequest;
 }
 
 export function getSelectedPaneId(): string | null {
@@ -55,7 +94,10 @@ export function getError(): string | null {
 	return error;
 }
 
+// ============================================================================
 // Actions
+// ============================================================================
+
 export function selectPane(paneId: string | null): void {
 	selectedPaneId = paneId;
 }
@@ -68,87 +110,201 @@ export function clearError(): void {
 	error = null;
 }
 
-function updatePane(pane: PaneInfo): void {
-	panes.set(pane.pane_id, pane);
-	// Trigger reactivity by reassigning
-	panes = new Map(panes);
+// ============================================================================
+// Internal: Comparison functions
+// ============================================================================
+
+function paneEquals(a: PaneInfo, b: PaneInfo): boolean {
+	return (
+		a.pane_id === b.pane_id &&
+		a.session_name === b.session_name &&
+		a.window_name === b.window_name &&
+		a.status === b.status &&
+		a.title === b.title
+	);
 }
 
-function removePane(paneId: string): void {
-	panes.delete(paneId);
-	outputs.delete(paneId);
-	inputRequests.delete(paneId);
-	panes = new Map(panes);
-	outputs = new Map(outputs);
-	inputRequests = new Map(inputRequests);
+function linesEqual(a: string[], b: string[]): boolean {
+	if (a.length !== b.length) return false;
+	// Compare from end (most likely to differ for streaming output)
+	for (let i = a.length - 1; i >= 0; i--) {
+		if (a[i] !== b[i]) return false;
+	}
+	return true;
+}
 
-	if (selectedPaneId === paneId) {
+function inputRequestEquals(
+	a: InputRequest | undefined,
+	b: InputRequest | undefined
+): boolean {
+	if (a === b) return true;
+	if (!a || !b) return false;
+	return a.type === b.type && a.prompt === b.prompt;
+}
+
+// ============================================================================
+// Internal: Store mutations
+// ============================================================================
+
+function createPaneStore(info: PaneInfo): PaneStore {
+	return {
+		info,
+		lines: [],
+		lineOffset: 0,
+		inputRequest: undefined
+	};
+}
+
+function syncPanes(newPanes: PaneInfo[]): void {
+	const newIds = new Set(newPanes.map((p) => p.pane_id));
+	let changed = false;
+
+	// Remove panes that no longer exist
+	for (const id of paneStores.keys()) {
+		if (!newIds.has(id)) {
+			paneStores.delete(id);
+			changed = true;
+		}
+	}
+
+	// Add/update panes
+	for (const pane of newPanes) {
+		const existing = paneStores.get(pane.pane_id);
+		if (!existing) {
+			paneStores.set(pane.pane_id, createPaneStore(pane));
+			changed = true;
+		} else if (!paneEquals(existing.info, pane)) {
+			// Mutate in place - only the info changes
+			existing.info = pane;
+		}
+	}
+
+	// Increment version only if Map structure changed
+	if (changed) {
+		storeVersion++;
+	}
+
+	// Clear selected pane if it was removed
+	if (selectedPaneId && !paneStores.has(selectedPaneId)) {
 		selectedPaneId = null;
 	}
 }
 
-function updateOutput(paneId: string, lines: string[]): void {
-	outputs.set(paneId, lines);
-	outputs = new Map(outputs);
+function updatePaneInPlace(
+	paneId: string,
+	status: PaneStatus,
+	lines: string[],
+	inputRequest: InputRequest | undefined
+): void {
+	const store = paneStores.get(paneId);
+	if (!store) return;
+
+	let changed = false;
+
+	// Only update status if changed
+	if (store.info.status !== status) {
+		store.info = { ...store.info, status };
+		changed = true;
+	}
+
+	// Only update lines if changed
+	if (!linesEqual(store.lines, lines)) {
+		// Check if this is an append operation
+		const isAppend =
+			lines.length > store.lines.length &&
+			linesEqual(store.lines, lines.slice(0, store.lines.length));
+
+		if (!isAppend) {
+			// Content replaced, reset lineOffset
+			store.lineOffset = 0;
+		}
+		// Replace array to trigger Svelte reactivity
+		store.lines = lines;
+		changed = true;
+	}
+
+	// Only update input request if changed
+	if (!inputRequestEquals(store.inputRequest, inputRequest)) {
+		store.inputRequest = inputRequest;
+		changed = true;
+	}
+
+	// Signal data change for reactivity
+	if (changed) {
+		dataVersion++;
+	}
 }
 
-function updateInputRequest(paneId: string, request: InputRequest | undefined): void {
-	inputRequests.set(paneId, request);
-	inputRequests = new Map(inputRequests);
+function addPane(pane: PaneInfo): void {
+	if (!paneStores.has(pane.pane_id)) {
+		paneStores.set(pane.pane_id, createPaneStore(pane));
+		storeVersion++;
+	} else {
+		// Update existing
+		const store = paneStores.get(pane.pane_id)!;
+		if (!paneEquals(store.info, pane)) {
+			store.info = pane;
+		}
+	}
 }
 
-function setPanes(paneList: PaneInfo[]): void {
-	panes = new Map(paneList.map((p) => [p.pane_id, p]));
+function removePane(paneId: string): void {
+	if (paneStores.has(paneId)) {
+		paneStores.delete(paneId);
+		storeVersion++;
+
+		if (selectedPaneId === paneId) {
+			selectedPaneId = null;
+		}
+	}
 }
 
+// ============================================================================
 // WebSocket event handler
+// ============================================================================
+
 function handleWebSocketEvent(event: WebSocketEvent): void {
 	switch (event.event) {
 		case 'initial_state':
 		case 'state':
-			setPanes(event.panes);
+			syncPanes(event.panes);
 			break;
 
 		case 'pane_discovered':
-			updatePane(event.pane);
+			addPane(event.pane);
 			break;
 
 		case 'pane_removed':
 			removePane(event.pane_id);
 			break;
 
-		case 'pane_update': {
-			const existingPane = panes.get(event.pane_id);
-			if (existingPane) {
-				updatePane({
-					...existingPane,
-					status: event.status,
-					last_updated: new Date().toISOString()
-				});
-			}
-			updateOutput(event.pane_id, event.lines);
-			updateInputRequest(event.pane_id, event.input_request);
+		case 'pane_update':
+			updatePaneInPlace(
+				event.pane_id,
+				event.status,
+				event.lines,
+				event.input_request
+			);
 			break;
-		}
 	}
 }
 
+// ============================================================================
 // Initialize store and WebSocket connection
+// ============================================================================
+
 export function initializeStore(): () => void {
 	if (!browser) {
-		return () => {}; // No-op cleanup for SSR
+		return () => {};
 	}
 
-	// Set up WebSocket handlers
 	const unsubscribeEvent = wsManager.onEvent(handleWebSocketEvent);
 	const unsubscribeConnection = wsManager.onConnection((connected) => {
 		isConnected = connected;
 	});
 
-	// Connect WebSocket
 	wsManager.connect();
 
-	// Return cleanup function
 	return () => {
 		unsubscribeEvent();
 		unsubscribeConnection();
@@ -156,7 +312,10 @@ export function initializeStore(): () => void {
 	};
 }
 
-// Fetch panes from API (fallback/initial load)
+// ============================================================================
+// API calls
+// ============================================================================
+
 export async function loadPanes(): Promise<void> {
 	if (!browser) return;
 
@@ -165,7 +324,7 @@ export async function loadPanes(): Promise<void> {
 
 	try {
 		const paneList = await fetchPanes();
-		setPanes(paneList);
+		syncPanes(paneList);
 	} catch (e) {
 		error = e instanceof Error ? e.message : 'Failed to load panes';
 		console.error('Failed to load panes:', e);
@@ -174,15 +333,29 @@ export async function loadPanes(): Promise<void> {
 	}
 }
 
-// Fetch output for a specific pane
-export async function loadPaneOutput(paneId: string, refresh = false): Promise<PaneOutput | null> {
+export async function loadPaneOutput(
+	paneId: string,
+	refresh = false
+): Promise<PaneOutput | null> {
 	if (!browser) return null;
 
 	try {
 		const output = await fetchPaneOutput(paneId, { refresh });
-		updateOutput(paneId, output.lines);
-		if (output.input_request) {
-			updateInputRequest(paneId, output.input_request);
+		const store = paneStores.get(paneId);
+		if (store) {
+			let changed = false;
+			if (!linesEqual(store.lines, output.lines)) {
+				store.lines = output.lines;
+				store.lineOffset = 0; // Reset on full refresh
+				changed = true;
+			}
+			if (!inputRequestEquals(store.inputRequest, output.input_request)) {
+				store.inputRequest = output.input_request;
+				changed = true;
+			}
+			if (changed) {
+				dataVersion++;
+			}
 		}
 		return output;
 	} catch (e) {
@@ -191,16 +364,20 @@ export async function loadPaneOutput(paneId: string, refresh = false): Promise<P
 	}
 }
 
-// Count panes by status
+// ============================================================================
+// Utility getters
+// ============================================================================
+
 export function countByStatus(status: PaneStatus): number {
 	let count = 0;
-	for (const pane of panes.values()) {
-		if (pane.status === status) count++;
+	for (const store of paneStores.values()) {
+		if (store.info.status === status) count++;
 	}
 	return count;
 }
 
-// Get panes waiting for input
 export function getPanesWaitingInput(): PaneInfo[] {
-	return Array.from(panes.values()).filter((p) => p.status === 'waiting_input');
+	return Array.from(paneStores.values())
+		.filter((s) => s.info.status === 'waiting_input')
+		.map((s) => s.info);
 }

@@ -104,7 +104,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         panes = await registry.get_all()
         initial_state = {
             "event": "initial_state",
-            "panes": [pane.to_info().model_dump() for pane in panes],
+            "panes": [pane.to_info().model_dump(mode='json') for pane in panes],
         }
         await websocket.send_json(initial_state)
     except Exception as e:
@@ -123,7 +123,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     panes = await registry.get_all()
                     state = {
                         "event": "state",
-                        "panes": [pane.to_info().model_dump() for pane in panes],
+                        "panes": [pane.to_info().model_dump(mode='json') for pane in panes],
                     }
                     await websocket.send_json(state)
                 except Exception as e:

@@ -37,9 +37,12 @@ async def lifespan(app: FastAPI):
         tmux_service=tmux_service,
         registry=registry,
         parser=parser,
+        use_control_mode=settings.use_control_mode,
         poll_interval=settings.poll_interval,
         discovery_interval=settings.discovery_interval,
         capture_lines=settings.capture_lines,
+        control_mode_reconnect_delay=settings.control_mode_reconnect_delay,
+        control_mode_max_reconnects=settings.control_mode_max_reconnects,
     )
 
     # Register WebSocket broadcast callback
@@ -56,7 +59,7 @@ async def lifespan(app: FastAPI):
 
     # Start observer
     await observer.start()
-    logger.info("Observer daemon started")
+    logger.info(f"Observer daemon started (mode: {observer.mode})")
 
     yield
 

@@ -95,6 +95,71 @@ class PaneRegistry:
             pane.last_activity = datetime.now()
             return True
 
+    async def append_output(
+        self,
+        pane_id: str,
+        new_data: str,
+        max_lines: int = 500,
+    ) -> bool:
+        """
+        Append new output data to pane buffer (for control mode streaming).
+
+        This method is used for incremental updates from control mode's
+        %output notifications, appending data to existing lines.
+
+        Args:
+            pane_id: Pane identifier
+            new_data: New output data to append (may contain newlines)
+            max_lines: Maximum lines to keep in buffer
+
+        Returns:
+            True if appended, False if pane not found
+        """
+        async with self._lock:
+            pane = self._panes.get(pane_id)
+            if not pane:
+                return False
+
+            # Append to the last line or create new lines
+            if new_data:
+                # Split by newlines
+                new_lines = new_data.split('\n')
+
+                if pane.last_lines:
+                    # Append first part to last existing line
+                    pane.last_lines[-1] += new_lines[0]
+                    # Add remaining lines
+                    if len(new_lines) > 1:
+                        pane.last_lines.extend(new_lines[1:])
+                else:
+                    pane.last_lines = new_lines
+
+                # Trim to max buffer size
+                if len(pane.last_lines) > max_lines:
+                    pane.last_lines = pane.last_lines[-max_lines:]
+
+                pane.last_activity = datetime.now()
+                # Clear hash since we're doing incremental updates
+                pane.last_output_hash = ""
+
+            return True
+
+    async def get_output(self, pane_id: str) -> list[str]:
+        """
+        Get current output lines for a pane.
+
+        Args:
+            pane_id: Pane identifier
+
+        Returns:
+            List of output lines, or empty list if pane not found
+        """
+        async with self._lock:
+            pane = self._panes.get(pane_id)
+            if not pane:
+                return []
+            return list(pane.last_lines)
+
     async def update_status(self, pane_id: str, status: PaneStatus) -> bool:
         """
         Update pane status.
