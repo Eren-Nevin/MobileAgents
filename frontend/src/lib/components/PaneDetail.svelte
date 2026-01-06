@@ -21,6 +21,7 @@
 	const hasInput = $derived(pane.status === 'waiting_input' && inputRequest);
 
 	let hiddenInput: HTMLInputElement;
+	let keyboardBarRef: HTMLDivElement;
 	let keyboardOpen = $state(false);
 
 	// Modifier key states (toggle buttons)
@@ -124,6 +125,15 @@
 
 	function handleFocus() {
 		keyboardOpen = true;
+		// Scroll to bottom after keyboard opens (multiple attempts for reliability)
+		const scrollToBottom = () => {
+			keyboardBarRef?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+			window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+		};
+		// Try multiple times as keyboard animation may take varying time
+		setTimeout(scrollToBottom, 100);
+		setTimeout(scrollToBottom, 300);
+		setTimeout(scrollToBottom, 500);
 	}
 
 	function handleBlur() {
@@ -200,7 +210,7 @@
 	</div>
 
 	<!-- Bottom input area (sticky) -->
-	<div class="shrink-0 sticky bottom-0 z-10 bg-gray-800 border-t border-gray-700">
+	<div bind:this={keyboardBarRef} class="shrink-0 sticky bottom-0 z-10 bg-gray-800 border-t border-gray-700">
 		<!-- Special input area for detected prompts -->
 		{#if hasInput && inputRequest}
 			<div class="border-b border-gray-700">
