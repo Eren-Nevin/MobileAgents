@@ -28,6 +28,76 @@
 	let ctrlActive = $state(false);
 	let altActive = $state(false);
 
+	// Buffered key sending - collect keystrokes and send together
+	let keyBuffer: string = '';
+	let specialKeyQueue: string[] = [];
+	let bufferTimeout: ReturnType<typeof setTimeout> | null = null;
+	let isSending = false;
+	const BUFFER_DELAY_MS = 50; // Collect keys for 50ms before sending
+
+	function flushBuffer() {
+		if (bufferTimeout) {
+			clearTimeout(bufferTimeout);
+			bufferTimeout = null;
+		}
+
+		if (isSending) {
+			// Re-schedule if currently sending
+			bufferTimeout = setTimeout(flushBuffer, BUFFER_DELAY_MS);
+			return;
+		}
+
+		const regularKeys = keyBuffer;
+		const specials = [...specialKeyQueue];
+		keyBuffer = '';
+		specialKeyQueue = [];
+
+		if (regularKeys || specials.length > 0) {
+			sendBuffered(regularKeys, specials);
+		}
+	}
+
+	async function sendBuffered(regularKeys: string, specials: string[]) {
+		isSending = true;
+		try {
+			// Send regular keys as a batch (single request)
+			if (regularKeys) {
+				await sendKeys(pane.pane_id, regularKeys, false);
+			}
+			// Send special keys one by one (they can't be batched)
+			for (const special of specials) {
+				await sendSpecialKey(pane.pane_id, special);
+			}
+		} catch (e) {
+			console.error('Failed to send keys:', e);
+		} finally {
+			isSending = false;
+			// Check if more keys accumulated while sending
+			if (keyBuffer || specialKeyQueue.length > 0) {
+				flushBuffer();
+			}
+		}
+	}
+
+	function queueKey(key: string, isSpecial: boolean = false) {
+		if (isSpecial) {
+			// Flush any pending regular keys first, then queue special
+			if (keyBuffer) {
+				flushBuffer();
+			}
+			specialKeyQueue.push(key);
+			// Send special keys with minimal delay
+			if (bufferTimeout) clearTimeout(bufferTimeout);
+			bufferTimeout = setTimeout(flushBuffer, 10);
+		} else {
+			// Buffer regular characters
+			keyBuffer += key;
+			// Reset/set the flush timer
+			if (bufferTimeout) clearTimeout(bufferTimeout);
+			bufferTimeout = setTimeout(flushBuffer, BUFFER_DELAY_MS);
+		}
+	}
+
 	// Special keys that tmux understands
 	const SPECIAL_KEYS: Record<string, string> = {
 		'Enter': 'Enter',
@@ -45,42 +115,30 @@
 		'PageDown': 'NPage',
 	};
 
-	async function sendKey(key: string, isSpecial: boolean = false) {
-		try {
-			// Build the key with modifiers if active
-			let finalKey = key;
-			let useLiteral = !isSpecial;
+	// Queue-based sendKey to ensure ordering
+	function sendKey(key: string, isSpecial: boolean = false) {
+		// Handle modifiers before queueing
+		let finalKey = key;
+		let finalIsSpecial = isSpecial;
 
-			if (ctrlActive || altActive) {
-				// For modifier combinations, use tmux key notation
-				// Ctrl+key = C-key, Alt+key = M-key, Ctrl+Alt+key = C-M-key
-				let prefix = '';
-				if (ctrlActive) prefix += 'C-';
-				if (altActive) prefix += 'M-';
+		if (ctrlActive || altActive) {
+			let prefix = '';
+			if (ctrlActive) prefix += 'C-';
+			if (altActive) prefix += 'M-';
 
-				// For special keys, just prepend the modifier
-				// For regular keys, use lowercase
-				if (isSpecial) {
-					finalKey = prefix + key;
-				} else {
-					finalKey = prefix + key.toLowerCase();
-				}
-				useLiteral = false; // tmux needs to interpret the key notation
-
-				// Reset modifiers after use
-				ctrlActive = false;
-				altActive = false;
-			}
-
-			if (useLiteral) {
-				await sendKeys(pane.pane_id, finalKey, false);
+			if (isSpecial) {
+				finalKey = prefix + key;
 			} else {
-				await sendSpecialKey(pane.pane_id, finalKey);
+				finalKey = prefix + key.toLowerCase();
 			}
-			// WebSocket provides real-time updates, no need to poll
-		} catch (e) {
-			console.error('Failed to send key:', e);
+			finalIsSpecial = true; // modifier combos need tmux interpretation
+
+			// Reset modifiers after use
+			ctrlActive = false;
+			altActive = false;
 		}
+
+		queueKey(finalKey, finalIsSpecial);
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
