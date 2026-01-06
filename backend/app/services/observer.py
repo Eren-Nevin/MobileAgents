@@ -228,8 +228,8 @@ class ObserverDaemon:
             # Capture pane output
             lines = await self.tmux.capture_pane(pane_id, self.capture_lines)
 
-            # Calculate hash for change detection
-            content = "\n".join(lines[-100:])  # Hash last 100 lines for efficiency
+            # Calculate hash for change detection (fewer lines = faster)
+            content = "\n".join(lines[-50:])  # Hash last 50 lines for efficiency
             output_hash = hashlib.sha256(content.encode()).hexdigest()
 
             # Check if output changed

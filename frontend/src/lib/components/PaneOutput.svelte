@@ -148,8 +148,11 @@
 			userScrolled = false;
 			scrollToBottom();
 		}}
-		class="absolute bottom-20 right-4 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-full shadow-lg transition-colors"
+		class="absolute bottom-16 right-4 w-10 h-10 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg transition-colors z-20"
+		aria-label="Scroll to bottom"
 	>
-		Scroll to bottom
+		<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+		</svg>
 	</button>
 {/if}

@@ -35,7 +35,7 @@ class ConnectionManager:
 
     async def broadcast(self, event: WebSocketEvent) -> None:
         """
-        Broadcast an event to all connected clients.
+        Broadcast an event to all connected clients in parallel.
 
         Automatically removes dead connections.
         """
@@ -48,12 +48,15 @@ class ConnectionManager:
         async with self._lock:
             connections = list(self._connections)
 
-        for websocket in connections:
+        async def send_to_client(ws: WebSocket) -> None:
             try:
-                await websocket.send_text(message)
+                await ws.send_text(message)
             except Exception as e:
                 logger.debug(f"Failed to send to websocket: {e}")
-                dead_connections.add(websocket)
+                dead_connections.add(ws)
+
+        # Send to all clients in parallel
+        await asyncio.gather(*[send_to_client(ws) for ws in connections], return_exceptions=True)
 
         # Clean up dead connections
         if dead_connections:

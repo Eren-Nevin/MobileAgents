@@ -8,3 +8,4 @@ export { default as InputArea } from './InputArea.svelte';
 export { default as TextInput } from './TextInput.svelte';
 export { default as ChoiceInput } from './ChoiceInput.svelte';
 export { default as ConfirmInput } from './ConfirmInput.svelte';
+export { default as ReloadPrompt } from './ReloadPrompt.svelte';

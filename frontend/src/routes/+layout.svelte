@@ -1,7 +1,8 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
-	import { Header } from '$lib/components';
+	import { browser } from '$app/environment';
+	import { Header, ReloadPrompt } from '$lib/components';
 	import { initializeStore, loadPanes } from '$lib/stores/panes.svelte';
 
 	let { children } = $props();
@@ -23,4 +24,8 @@
 	<main class="flex-1 flex flex-col">
 		{@render children()}
 	</main>
+
+	{#if browser}
+		<ReloadPrompt />
+	{/if}
 </div>

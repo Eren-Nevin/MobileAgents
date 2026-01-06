@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
 
     # Observer settings
-    poll_interval: float = 1.0  # seconds between output polls
+    poll_interval: float = 0.1  # seconds between output polls
     discovery_interval: float = 5.0  # seconds between pane discovery
-    capture_lines: int = 500  # number of lines to capture from pane
+    capture_lines: int = 200  # number of lines to capture from pane
 
     # tmux settings
     tmux_socket: str | None = None  # optional tmux socket path
