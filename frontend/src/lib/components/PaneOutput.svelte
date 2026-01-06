@@ -34,9 +34,59 @@
 	});
 
 	// Convert ANSI codes to HTML
+	// Also handle dim text (ESC[2m) which ansi-to-html ignores
 	function ansiToHtml(text: string): string {
 		try {
-			return ansiConverter.toHtml(text);
+			// ansi-to-html consumes dim codes (\x1b[2m) but doesn't apply any styling
+			// We need to insert markers before conversion, then convert markers to spans after
+
+			let processed = text;
+
+			// Insert markers around dim sections
+			// \x1b[2m = dim start, \x1b[22m = dim end (normal intensity), \x1b[0m = full reset
+			if (text.includes('\x1b[2m') || text.includes('\x1b[0;2m')) {
+				// Replace dim codes with marker + dim code (so ansi-to-html still processes the sequence)
+				processed = processed
+					.replace(/\x1b\[0;2m/g, '{{DIM}}')      // combined reset+dim
+					.replace(/\x1b\[2m/g, '{{DIM}}');        // standalone dim
+
+				// Mark where dim ends - before \x1b[0m or \x1b[22m
+				processed = processed
+					.replace(/\x1b\[22m/g, '{{/DIM}}\x1b[22m')  // normal intensity
+					.replace(/\x1b\[0m/g, '{{/DIM}}\x1b[0m');   // full reset
+			}
+
+			// Convert to HTML
+			let html = ansiConverter.toHtml(processed);
+
+			// Replace markers with opacity spans
+			// Use a simple state machine to handle unbalanced markers
+			let result = '';
+			let inDim = false;
+
+			const parts = html.split(/(\{\{DIM\}\}|\{\{\/DIM\}\})/);
+			for (const part of parts) {
+				if (part === '{{DIM}}') {
+					if (!inDim) {
+						result += '<span style="opacity:0.5">';
+						inDim = true;
+					}
+				} else if (part === '{{/DIM}}') {
+					if (inDim) {
+						result += '</span>';
+						inDim = false;
+					}
+				} else {
+					result += part;
+				}
+			}
+
+			// Close any unclosed dim span at end of line
+			if (inDim) {
+				result += '</span>';
+			}
+
+			return result;
 		} catch {
 			return text;
 		}
