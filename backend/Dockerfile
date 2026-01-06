@@ -3,9 +3,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install tmux (required for the observer daemon)
+# Install tmux and curl (for healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -15,8 +16,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ ./app/
 
-# Expose port
-EXPOSE 8000
+# Make app directory readable by all (for running as non-root user)
+RUN chmod -R a+rX /app
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default port (can be overridden by MOBILEAGENT_PORT env var)
+ENV MOBILEAGENT_PORT=8765
+EXPOSE 8765
+
+# Run the application using the configured port
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${MOBILEAGENT_PORT}"

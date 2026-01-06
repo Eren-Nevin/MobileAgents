@@ -5,6 +5,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Note: No VITE_API_URL set - frontend auto-detects from window.location
+
 # Copy package files
 COPY package.json ./
 
@@ -28,8 +30,11 @@ RUN npm install -g sirv-cli
 # Copy built files from builder stage
 COPY --from=builder /app/build ./build
 
+# Default port (can be overridden)
+ENV PORT=5678
+
 # Expose port
-EXPOSE 3000
+EXPOSE 5678
 
 # Serve the static files
-CMD ["sirv", "build", "--host", "0.0.0.0", "--port", "3000", "--single"]
+CMD sh -c "sirv build --host 0.0.0.0 --port ${PORT} --single"

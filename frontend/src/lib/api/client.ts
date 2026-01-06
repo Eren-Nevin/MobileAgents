@@ -1,8 +1,26 @@
 import { browser } from '$app/environment';
 
-// In development with Vite proxy, use relative path
-// In production or if proxy fails, could use direct URL
-const API_BASE = '/api';
+// Lazily evaluated API base URL (computed on first use in browser)
+let _apiBase: string | null = null;
+
+function getApiBase(): string {
+	// Return cached value if available
+	if (_apiBase) return _apiBase;
+
+	// SSR fallback
+	if (!browser) return '/api';
+
+	// If VITE_API_URL is set, use it (for custom configurations)
+	if (import.meta.env.VITE_API_URL) {
+		_apiBase = import.meta.env.VITE_API_URL + '/api';
+	} else {
+		// Auto-detect: use current hostname with backend port
+		const { protocol, hostname } = window.location;
+		_apiBase = `${protocol}//${hostname}:8765/api`;
+	}
+
+	return _apiBase;
+}
 
 export class ApiError extends Error {
 	constructor(
@@ -18,7 +36,7 @@ export async function apiRequest<T>(
 	endpoint: string,
 	options: RequestInit = {}
 ): Promise<T> {
-	const url = `${API_BASE}${endpoint}`;
+	const url = `${getApiBase()}${endpoint}`;
 
 	const response = await fetch(url, {
 		...options,

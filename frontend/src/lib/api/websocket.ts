@@ -15,12 +15,18 @@ export class WebSocketManager {
 	private pingInterval: ReturnType<typeof setInterval> | null = null;
 
 	constructor(url?: string) {
-		// Default to current host with ws/wss based on protocol
 		if (url) {
 			this.url = url;
 		} else if (browser) {
-			const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-			this.url = `${protocol}//${window.location.host}/ws`;
+			// If VITE_API_URL is set, use it
+			const apiUrl = import.meta.env.VITE_API_URL;
+			if (apiUrl) {
+				this.url = apiUrl.replace(/^http/, 'ws') + '/ws';
+			} else {
+				// Auto-detect: use current hostname with backend port
+				const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+				this.url = `${wsProtocol}//${window.location.hostname}:8765/ws`;
+			}
 		}
 	}
 
