@@ -77,7 +77,7 @@ class ObserverDaemon:
 
         # Track pending updates for batching
         self._pending_updates: dict[str, asyncio.Task] = {}
-        self._update_debounce_ms: int = 50  # Debounce updates within 50ms
+        self._update_debounce_ms: int = 15  # Debounce updates within 15ms
 
     def on_event(self, callback: EventCallback) -> None:
         """
@@ -248,9 +248,10 @@ class ObserverDaemon:
             return
 
         # Use capture_pane to get properly rendered terminal content
-        # (append_output accumulates raw escape sequences that aren't interpreted)
+        # For incremental updates, only capture last 300 lines for faster transfer
+        incremental_lines = 300
         try:
-            lines = await self.tmux.capture_pane(pane_id, self.capture_lines)
+            lines = await self.tmux.capture_pane(pane_id, incremental_lines)
             # Update registry with captured content
             await self.registry.update_output(pane_id, lines, "")
         except Exception as e:
