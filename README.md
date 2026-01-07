@@ -311,4 +311,7 @@ MATE_CORS_ORIGINS='["http://localhost:5678"]'
 
 ## License
 
-MIT
+AGPL-3.0-or-later
+
+Commercial licenses are available for organizations that wish to use
+this software without AGPL obligations. Contact: eren.m.nevin@gmail.com
