@@ -370,6 +370,15 @@
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 					</svg>
 				</button>
+				<!-- Newline (Alt+Enter for Claude/Codex) -->
+				<button
+					onclick={() => sendKey('M-Enter', true)}
+					class="h-10 px-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
+					aria-label="Insert newline"
+					title="Insert newline (Alt+Enter)"
+				>
+					↵
+				</button>
 				<!-- Enter key -->
 				<button
 					onclick={() => sendKey('Enter', true)}
