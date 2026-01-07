@@ -252,11 +252,14 @@ class ObserverDaemon:
         incremental_lines = 300
         try:
             lines = await self.tmux.capture_pane(pane_id, incremental_lines)
+            cursor_pos = await self.tmux.get_cursor_position(pane_id)
+            cursor_x, cursor_y = cursor_pos if cursor_pos else (0, 0)
             # Update registry with captured content
             await self.registry.update_output(pane_id, lines, "")
         except Exception as e:
             logger.warning(f"Failed to capture pane {pane_id}: {e}")
             lines = await self.registry.get_output(pane_id)
+            cursor_x, cursor_y = 0, 0
 
         # Parse for input request
         input_request = self.parser.parse(lines)
@@ -273,6 +276,8 @@ class ObserverDaemon:
                 status=pane.status,
                 lines=lines,
                 input_request=pane.input_request,
+                cursor_x=cursor_x,
+                cursor_y=cursor_y,
             )
             await self._emit_event(event)
 
@@ -329,8 +334,10 @@ class ObserverDaemon:
             pane_id: Pane to poll
         """
         try:
-            # Capture pane output
+            # Capture pane output and cursor position
             lines = await self.tmux.capture_pane(pane_id, self.capture_lines)
+            cursor_pos = await self.tmux.get_cursor_position(pane_id)
+            cursor_x, cursor_y = cursor_pos if cursor_pos else (0, 0)
 
             # Calculate hash for change detection (fewer lines = faster)
             content = "\n".join(lines[-50:])  # Hash last 50 lines for efficiency
@@ -352,6 +359,10 @@ class ObserverDaemon:
                         # Input marker gone, clear the request
                         await self.registry.clear_input_request(pane_id)
 
+                    # Update cursor position
+                    pane.cursor_x = cursor_x
+                    pane.cursor_y = cursor_y
+
                     # Emit update event
                     pane = await self.registry.get(pane_id)  # Refresh state
                     if pane:
@@ -360,6 +371,8 @@ class ObserverDaemon:
                             status=pane.status,
                             lines=lines,
                             input_request=pane.input_request,
+                            cursor_x=cursor_x,
+                            cursor_y=cursor_y,
                         )
                         await self._emit_event(event)
 

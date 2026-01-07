@@ -6,6 +6,8 @@ export interface PaneUpdateEvent {
 	status: PaneStatus;
 	lines: string[];
 	input_request?: InputRequest;
+	cursor_x: number;
+	cursor_y: number;
 }
 
 export interface PaneDiscoveryEvent {

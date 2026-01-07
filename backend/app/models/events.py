@@ -14,6 +14,8 @@ class PaneUpdateEvent(BaseModel):
     status: PaneStatus
     lines: list[str] = Field(default_factory=list)
     input_request: Optional[InputRequest] = None
+    cursor_x: int = 0
+    cursor_y: int = 0
 
 
 class PaneDiscoveryEvent(BaseModel):

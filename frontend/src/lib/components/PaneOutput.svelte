@@ -6,9 +6,11 @@
 		lines: string[];
 		lineOffset?: number; // For stable line keys across updates
 		autoScroll?: boolean;
+		cursorX?: number; // Cursor column position
+		cursorY?: number; // Cursor row position (0-indexed from visible lines)
 	}
 
-	let { lines, lineOffset = 0, autoScroll = true }: Props = $props();
+	let { lines, lineOffset = 0, autoScroll = true, cursorX, cursorY }: Props = $props();
 
 	// Trim trailing empty lines
 	const trimmedLines = $derived.by(() => {
@@ -17,6 +19,17 @@
 			end--;
 		}
 		return lines.slice(0, end);
+	});
+
+	// Calculate cursor line index in trimmedLines
+	// cursorY from tmux is 0-indexed from top of visible pane
+	// We estimate visible pane height (typically 24-50 rows)
+	const ESTIMATED_VISIBLE_ROWS = 50;
+	const cursorLineIndex = $derived.by(() => {
+		if (cursorY === undefined) return -1;
+		// Cursor is in the visible portion which is at the end of captured content
+		const visibleStart = Math.max(0, trimmedLines.length - ESTIMATED_VISIBLE_ROWS);
+		return visibleStart + cursorY;
 	});
 
 	let containerRef: HTMLDivElement;
@@ -57,7 +70,7 @@
 	onscroll={handleScroll}
 	class="h-full overflow-y-auto rounded-lg p-3 scrollbar-thin bg-terminal"
 >
-	<pre class="font-mono-output text-gray-200 whitespace-pre-wrap break-words">{#each trimmedLines as line, i (lineOffset + i)}<Line content={line} />{/each}</pre>
+	<pre class="font-mono-output text-gray-200 whitespace-pre-wrap break-words">{#each trimmedLines as line, i (lineOffset + i)}<Line content={line} cursorX={i === cursorLineIndex ? cursorX : undefined} />{/each}</pre>
 </div>
 
 {#if userScrolled}

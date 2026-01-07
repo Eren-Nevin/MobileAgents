@@ -8,6 +8,8 @@ interface PaneStore {
 	lines: string[];
 	lineOffset: number; // For stable line keys
 	inputRequest: InputRequest | undefined;
+	cursorX: number;
+	cursorY: number;
 }
 
 // Reactive state using Svelte 5 runes
@@ -76,6 +78,13 @@ export function getInputRequest(paneId: string): InputRequest | undefined {
 	void storeVersion; // Track Map changes for reactivity
 	void dataVersion; // Track data updates for reactivity
 	return paneStores.get(paneId)?.inputRequest;
+}
+
+export function getCursorPosition(paneId: string): { x: number; y: number } {
+	void storeVersion; // Track Map changes for reactivity
+	void dataVersion; // Track data updates for reactivity
+	const store = paneStores.get(paneId);
+	return { x: store?.cursorX ?? 0, y: store?.cursorY ?? 0 };
 }
 
 export function getSelectedPaneId(): string | null {
@@ -151,7 +160,9 @@ function createPaneStore(info: PaneInfo): PaneStore {
 		info,
 		lines: [],
 		lineOffset: 0,
-		inputRequest: undefined
+		inputRequest: undefined,
+		cursorX: 0,
+		cursorY: 0
 	};
 }
 
@@ -194,7 +205,9 @@ function updatePaneInPlace(
 	paneId: string,
 	status: PaneStatus,
 	lines: string[],
-	inputRequest: InputRequest | undefined
+	inputRequest: InputRequest | undefined,
+	cursorX: number = 0,
+	cursorY: number = 0
 ): void {
 	const store = paneStores.get(paneId);
 	if (!store) return;
@@ -204,6 +217,13 @@ function updatePaneInPlace(
 	// Only update status if changed
 	if (store.info.status !== status) {
 		store.info = { ...store.info, status };
+		changed = true;
+	}
+
+	// Update cursor position
+	if (store.cursorX !== cursorX || store.cursorY !== cursorY) {
+		store.cursorX = cursorX;
+		store.cursorY = cursorY;
 		changed = true;
 	}
 
@@ -283,7 +303,9 @@ function handleWebSocketEvent(event: WebSocketEvent): void {
 				event.pane_id,
 				event.status,
 				event.lines,
-				event.input_request
+				event.input_request,
+				event.cursor_x,
+				event.cursor_y
 			);
 			break;
 	}
@@ -351,6 +373,12 @@ export async function loadPaneOutput(
 			}
 			if (!inputRequestEquals(store.inputRequest, output.input_request)) {
 				store.inputRequest = output.input_request;
+				changed = true;
+			}
+			// Update cursor position
+			if (store.cursorX !== output.cursor_x || store.cursorY !== output.cursor_y) {
+				store.cursorX = output.cursor_x;
+				store.cursorY = output.cursor_y;
 				changed = true;
 			}
 			if (changed) {

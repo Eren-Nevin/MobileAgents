@@ -43,6 +43,8 @@ class PaneState(BaseModel):
     last_lines: list[str] = Field(default_factory=list)
     input_request: Optional[InputRequest] = None
     last_activity: datetime = Field(default_factory=datetime.now)
+    cursor_x: int = 0
+    cursor_y: int = 0
 
     def to_info(self) -> PaneInfo:
         """Convert internal state to API response model"""
@@ -64,3 +66,5 @@ class PaneOutput(BaseModel):
     lines: list[str] = Field(default_factory=list)
     line_count: int = 0
     input_request: Optional[InputRequest] = None
+    cursor_x: int = 0
+    cursor_y: int = 0

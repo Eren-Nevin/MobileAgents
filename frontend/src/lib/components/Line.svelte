@@ -3,9 +3,10 @@
 
 	interface Props {
 		content: string;
+		cursorX?: number; // If defined, show cursor at this column
 	}
 
-	let { content }: Props = $props();
+	let { content, cursorX }: Props = $props();
 
 	// ANSI converter (shared instance across all Line components)
 	const ansiConverter = new AnsiToHtml({
@@ -71,4 +72,14 @@
 	const html = $derived(convertAnsiToHtml(content));
 </script>
 
-<span class="block hover:bg-white/5" use:htmlContent={html}></span>
+{#if cursorX !== undefined}
+	<span class="block hover:bg-white/5 relative">
+		<span use:htmlContent={html}></span>
+		<span
+			class="absolute top-0 h-full w-[0.6em] bg-green-400/80 animate-pulse"
+			style="left: {cursorX}ch"
+		></span>
+	</span>
+{:else}
+	<span class="block hover:bg-white/5" use:htmlContent={html}></span>
+{/if}

@@ -78,11 +78,17 @@ async def get_pane_output(
         # Use cached output
         output_lines = pane.last_lines[-lines:] if pane.last_lines else []
 
+    # Get cursor position
+    cursor_pos = await tmux.get_cursor_position(pane_id)
+    cursor_x, cursor_y = cursor_pos if cursor_pos else (0, 0)
+
     return PaneOutput(
         pane_id=pane_id,
         lines=output_lines,
         line_count=len(output_lines),
         input_request=pane.input_request,
+        cursor_x=cursor_x,
+        cursor_y=cursor_y,
     )
 
 

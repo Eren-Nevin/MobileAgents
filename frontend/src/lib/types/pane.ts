@@ -25,6 +25,8 @@ export interface PaneOutput {
 	lines: string[];
 	line_count: number;
 	input_request?: InputRequest;
+	cursor_x: number;
+	cursor_y: number;
 }
 
 export interface InputSubmission {
