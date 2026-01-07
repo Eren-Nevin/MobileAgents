@@ -215,34 +215,23 @@
 </script>
 
 <div class="flex flex-col h-[100dvh]">
-	<!-- Header (sticky) -->
-	<div class="shrink-0 sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+	<!-- Header (sticky) - unified navbar -->
+	<div class="shrink-0 sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
 		<div class="flex items-center gap-3">
 			<a
 				href="/"
-				class="p-2 -ml-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-				aria-label="Back to list"
+				class="text-lg font-semibold text-white hover:text-gray-300 transition-colors"
 			>
-				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15 19l-7-7 7-7"
-					/>
-				</svg>
+				Mate
 			</a>
 
-			<div>
-				<div class="flex items-center gap-2">
-					<span class="text-sm text-gray-400">
-						{pane.session_name}:{pane.window_name}
-					</span>
-					<StatusBadge status={pane.status} size="sm" />
-				</div>
-				{#if pane.title}
-					<h1 class="text-white font-medium">{pane.title}</h1>
-				{/if}
+			<span class="text-gray-600">›</span>
+
+			<div class="flex items-center gap-2 min-w-0">
+				<span class="text-sm text-gray-400 truncate">
+					{pane.session_name}:{pane.window_name}
+				</span>
+				<StatusBadge status={pane.status} size="sm" />
 			</div>
 		</div>
 
