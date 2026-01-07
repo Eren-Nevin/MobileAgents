@@ -12,24 +12,17 @@
 
 	let { lines, lineOffset = 0, autoScroll = true, cursorX, cursorY }: Props = $props();
 
-	// Trim trailing empty lines
+	// cursorY is already calculated as the line index in captured output by the backend
+	const cursorLineIndex = $derived(cursorY ?? -1);
+
+	// Trim trailing empty lines, but keep at least up to cursor line
 	const trimmedLines = $derived.by(() => {
 		let end = lines.length;
-		while (end > 0 && !lines[end - 1]?.trim()) {
+		const minEnd = cursorLineIndex >= 0 ? cursorLineIndex + 1 : 0;
+		while (end > minEnd && !lines[end - 1]?.trim()) {
 			end--;
 		}
 		return lines.slice(0, end);
-	});
-
-	// Calculate cursor line index in trimmedLines
-	// cursorY from tmux is 0-indexed from top of visible pane
-	// We estimate visible pane height (typically 24-50 rows)
-	const ESTIMATED_VISIBLE_ROWS = 50;
-	const cursorLineIndex = $derived.by(() => {
-		if (cursorY === undefined) return -1;
-		// Cursor is in the visible portion which is at the end of captured content
-		const visibleStart = Math.max(0, trimmedLines.length - ESTIMATED_VISIBLE_ROWS);
-		return visibleStart + cursorY;
 	});
 
 	let containerRef: HTMLDivElement;

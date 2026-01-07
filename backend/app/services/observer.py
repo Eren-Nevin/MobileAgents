@@ -253,7 +253,14 @@ class ObserverDaemon:
         try:
             lines = await self.tmux.capture_pane(pane_id, incremental_lines)
             cursor_pos = await self.tmux.get_cursor_position(pane_id)
-            cursor_x, cursor_y = cursor_pos if cursor_pos else (0, 0)
+            if cursor_pos:
+                cursor_x, cursor_y_raw, pane_height = cursor_pos
+                # Calculate actual line index in captured output
+                # Visible portion is the last pane_height lines
+                visible_start = max(0, len(lines) - pane_height)
+                cursor_y = visible_start + cursor_y_raw
+            else:
+                cursor_x, cursor_y = 0, 0
             # Update registry with captured content
             await self.registry.update_output(pane_id, lines, "")
         except Exception as e:
@@ -337,7 +344,13 @@ class ObserverDaemon:
             # Capture pane output and cursor position
             lines = await self.tmux.capture_pane(pane_id, self.capture_lines)
             cursor_pos = await self.tmux.get_cursor_position(pane_id)
-            cursor_x, cursor_y = cursor_pos if cursor_pos else (0, 0)
+            if cursor_pos:
+                cursor_x, cursor_y_raw, pane_height = cursor_pos
+                # Calculate actual line index in captured output
+                visible_start = max(0, len(lines) - pane_height)
+                cursor_y = visible_start + cursor_y_raw
+            else:
+                cursor_x, cursor_y = 0, 0
 
             # Calculate hash for change detection (fewer lines = faster)
             content = "\n".join(lines[-50:])  # Hash last 50 lines for efficiency

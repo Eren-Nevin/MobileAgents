@@ -262,26 +262,26 @@ class TmuxService:
             logger.error(f"Failed to send keys to pane {pane_id}: {e}")
             return False
 
-    async def get_cursor_position(self, pane_id: str) -> Optional[tuple[int, int]]:
+    async def get_cursor_position(self, pane_id: str) -> Optional[tuple[int, int, int]]:
         """
-        Get the cursor position in a pane.
+        Get the cursor position and pane height.
 
         Args:
             pane_id: Pane identifier
 
         Returns:
-            Tuple of (x, y) cursor position, or None if not available
+            Tuple of (x, y, pane_height), or None if not available
         """
         try:
             output = await self._run_command(
                 "display-message",
                 "-t", pane_id,
-                "-p", "#{cursor_x},#{cursor_y}"
+                "-p", "#{cursor_x},#{cursor_y},#{pane_height}"
             )
             if output.strip():
                 parts = output.strip().split(",")
-                if len(parts) == 2:
-                    return (int(parts[0]), int(parts[1]))
+                if len(parts) == 3:
+                    return (int(parts[0]), int(parts[1]), int(parts[2]))
             return None
         except (TmuxError, ValueError):
             return None

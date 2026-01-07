@@ -76,7 +76,7 @@
 	<span class="block hover:bg-white/5 relative">
 		<span use:htmlContent={html}></span>
 		<span
-			class="absolute top-0 h-full w-[0.6em] bg-green-400/80 animate-pulse"
+			class="absolute top-0 h-full w-[2px] bg-green-400"
 			style="left: {cursorX}ch"
 		></span>
 	</span>
