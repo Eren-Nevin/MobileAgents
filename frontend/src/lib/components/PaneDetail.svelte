@@ -216,7 +216,7 @@
 
 <div class="flex flex-col h-[100dvh]">
 	<!-- Header (sticky) - unified navbar -->
-	<div class="shrink-0 sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
+	<div class="shrink-0 sticky top-0 z-10 flex items-center justify-between px-4 h-14 bg-gray-800 border-b border-gray-700">
 		<div class="flex items-center gap-3">
 			<a
 				href="/"
