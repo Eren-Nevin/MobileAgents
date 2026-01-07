@@ -5,11 +5,12 @@
 	import type { PaneInfo } from '$lib/types';
 
 	// Filter options
-	type FilterOption = 'claude' | 'codex' | 'all';
+	type FilterOption = 'claude' | 'codex' | 'all_agents' | 'all_panes';
 	const filterOptions: { value: FilterOption; label: string }[] = [
 		{ value: 'claude', label: 'Claude' },
 		{ value: 'codex', label: 'Codex' },
-		{ value: 'all', label: 'All Panes' }
+		{ value: 'all_agents', label: 'All Agents' },
+		{ value: 'all_panes', label: 'All Panes' }
 	];
 
 	// Filter state - load from localStorage, default to 'claude'
@@ -40,9 +41,22 @@
 	const isLoading = $derived(getIsLoading());
 	const error = $derived(getError());
 
+	// Check if a pane is an agent (Claude or Codex)
+	function isAgentPane(pane: PaneInfo): boolean {
+		const windowName = pane.window_name.toLowerCase();
+		const title = pane.title.toLowerCase();
+		return (
+			windowName.includes('claude') ||
+			title.includes('claude') ||
+			windowName.includes('codex') ||
+			title.includes('codex')
+		);
+	}
+
 	// Check if a pane matches the filter
 	function matchesFilter(pane: PaneInfo, filterType: FilterOption): boolean {
-		if (filterType === 'all') return true;
+		if (filterType === 'all_panes') return true;
+		if (filterType === 'all_agents') return isAgentPane(pane);
 
 		const windowName = pane.window_name.toLowerCase();
 		const title = pane.title.toLowerCase();
@@ -58,7 +72,7 @@
 
 	// Filter panes grouped by session
 	const filteredPanesBySession = $derived(() => {
-		if (filter === 'all') return panesBySession;
+		if (filter === 'all_panes') return panesBySession;
 
 		const filtered = new Map<string, PaneInfo[]>();
 		for (const [sessionName, panes] of panesBySession.entries()) {
@@ -72,7 +86,7 @@
 
 	// Filter panes as flat list
 	const filteredPanes = $derived(() => {
-		if (filter === 'all') return allPanes;
+		if (filter === 'all_panes') return allPanes;
 		return allPanes.filter((p) => matchesFilter(p, filter));
 	});
 
@@ -83,12 +97,13 @@
 	);
 
 	const filterLabel = $derived(filterOptions.find((o) => o.value === filter)?.label || 'All');
+	const pageTitle = $derived(filter === 'all_panes' ? 'Panes' : 'Agents');
 </script>
 
 <div class="p-4 max-w-4xl mx-auto">
 	<!-- Header with filter selector and view toggle -->
 	<div class="flex items-center justify-between mb-4 gap-3">
-		<h1 class="text-lg font-semibold text-white">Panes</h1>
+		<h1 class="text-lg font-semibold text-white">{pageTitle}</h1>
 
 		<div class="flex items-center gap-2">
 			<!-- Filter selector -->
@@ -156,11 +171,13 @@
 	{:else if isEmpty}
 		<div class="text-center py-12">
 			<div class="text-gray-500 mb-2">
-				No {filter === 'all' ? '' : filterLabel} panes found
+				No {filter === 'all_panes' ? '' : filterLabel.toLowerCase()} panes found
 			</div>
 			<p class="text-sm text-gray-600">
-				{#if filter === 'all'}
+				{#if filter === 'all_panes'}
 					Start a tmux session to see panes here
+				{:else if filter === 'all_agents'}
+					No Claude or Codex agent panes found
 				{:else}
 					No panes with "{filter}" in the name or title
 				{/if}
