@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PaneInfo } from '$lib/types';
-	import { getPaneOutput, getPaneLineOffset, getInputRequest, getCursorPosition, loadPaneOutput } from '$lib/stores/panes.svelte';
+	import { getPaneOutput, getPaneLineOffset, getInputRequest, loadPaneOutput } from '$lib/stores/panes.svelte';
 	import { sendKeys, sendSpecialKey } from '$lib/api';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
@@ -18,7 +18,6 @@
 	const output = $derived(getPaneOutput(pane.pane_id));
 	const lineOffset = $derived(getPaneLineOffset(pane.pane_id));
 	const inputRequest = $derived(getInputRequest(pane.pane_id));
-	const cursorPos = $derived(getCursorPosition(pane.pane_id));
 	const hasInput = $derived(pane.status === 'waiting_input' && inputRequest);
 
 	let hiddenInput: HTMLInputElement;
@@ -254,7 +253,7 @@
 
 	<!-- Output area -->
 	<div class="flex-1 min-h-0 overflow-hidden relative">
-		<PaneOutput lines={output} {lineOffset} cursorX={cursorPos.x} cursorY={cursorPos.y} />
+		<PaneOutput lines={output} {lineOffset} />
 	</div>
 
 	<!-- Bottom input area (sticky) -->

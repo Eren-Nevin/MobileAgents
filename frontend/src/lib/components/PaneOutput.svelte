@@ -6,20 +6,14 @@
 		lines: string[];
 		lineOffset?: number; // For stable line keys across updates
 		autoScroll?: boolean;
-		cursorX?: number; // Cursor column position
-		cursorY?: number; // Cursor row position (0-indexed from visible lines)
 	}
 
-	let { lines, lineOffset = 0, autoScroll = true, cursorX, cursorY }: Props = $props();
+	let { lines, lineOffset = 0, autoScroll = true }: Props = $props();
 
-	// cursorY is already calculated as the line index in captured output by the backend
-	const cursorLineIndex = $derived(cursorY ?? -1);
-
-	// Trim trailing empty lines, but keep at least up to cursor line
+	// Trim trailing empty lines
 	const trimmedLines = $derived.by(() => {
 		let end = lines.length;
-		const minEnd = cursorLineIndex >= 0 ? cursorLineIndex + 1 : 0;
-		while (end > minEnd && !lines[end - 1]?.trim()) {
+		while (end > 0 && !lines[end - 1]?.trim()) {
 			end--;
 		}
 		return lines.slice(0, end);
@@ -63,7 +57,7 @@
 	onscroll={handleScroll}
 	class="h-full overflow-y-auto rounded-lg p-3 scrollbar-thin bg-terminal"
 >
-	<pre class="font-mono-output text-gray-200 whitespace-pre-wrap break-words">{#each trimmedLines as line, i (lineOffset + i)}<Line content={line} cursorX={i === cursorLineIndex ? cursorX : undefined} />{/each}</pre>
+	<pre class="font-mono-output text-gray-200 whitespace-pre-wrap break-words">{#each trimmedLines as line, i (lineOffset + i)}<Line content={line} />{/each}</pre>
 </div>
 
 {#if userScrolled}

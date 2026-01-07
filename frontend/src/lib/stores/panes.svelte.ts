@@ -220,7 +220,7 @@ function updatePaneInPlace(
 		changed = true;
 	}
 
-	// Update cursor position
+	// Update cursor position (kept for future use)
 	if (store.cursorX !== cursorX || store.cursorY !== cursorY) {
 		store.cursorX = cursorX;
 		store.cursorY = cursorY;

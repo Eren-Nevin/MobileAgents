@@ -248,8 +248,8 @@ class ObserverDaemon:
             return
 
         # Use capture_pane to get properly rendered terminal content
-        # For incremental updates, only capture last 300 lines for faster transfer
-        incremental_lines = 300
+        # Use 500 lines to match API endpoint for consistent cursor calculation
+        incremental_lines = 500
         try:
             lines = await self.tmux.capture_pane(pane_id, incremental_lines)
             cursor_pos = await self.tmux.get_cursor_position(pane_id)
